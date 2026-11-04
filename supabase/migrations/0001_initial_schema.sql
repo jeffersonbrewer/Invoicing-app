@@ -31,6 +31,7 @@ create table project (
   name text not null,
   site_address text,
   status text not null default 'active' check (status in ('active', 'done')),
+  markup_pct numeric(6,2), -- null = use category or business default
   notes text,
   created_at timestamptz not null default now()
 );
@@ -41,6 +42,16 @@ create table category (
   name text not null,
   markup_pct numeric(6,2), -- null = use business default
   sort_order integer not null default 0
+);
+
+-- Markup for one category on one job, e.g. plants at 40% on the Smith job.
+-- Lookup order for a new item: item > project+category > project > category > business default.
+create table project_category_markup (
+  business_id uuid not null references business (id) on delete cascade,
+  project_id uuid not null references project (id) on delete cascade,
+  category_id uuid not null references category (id) on delete cascade,
+  markup_pct numeric(6,2) not null,
+  primary key (project_id, category_id)
 );
 
 create table worker (
@@ -62,6 +73,12 @@ create table invoice (
   issue_date date not null default current_date,
   due_date date,
   status text not null default 'draft' check (status in ('draft', 'sent', 'paid')),
+  -- 'included' folds sales tax into line prices; 'separate' shows it as its own line.
+  tax_display text not null default 'included' check (tax_display in ('included', 'separate')),
+  period_start date,
+  period_end date,
+  paid_at date,
+  payment_note text,
   subtotal_cents integer not null default 0,
   tax_cents integer not null default 0,
   total_cents integer not null default 0,
@@ -79,6 +96,7 @@ create table item (
   qty numeric(10,2) not null default 1,
   unit text,
   unit_cost_cents integer not null default 0,  -- her cost, never shown to clients
+  markup_pct numeric(6,2),                     -- the markup used when the price was filled in
   unit_price_cents integer not null default 0, -- client price
   invoice_id uuid references invoice (id) on delete set null,
   created_at timestamptz not null default now()
@@ -128,7 +146,7 @@ create policy business_owner on business
 do $$
 declare t text;
 begin
-  foreach t in array array['client','project','category','worker','invoice','item','time_entry','photo'] loop
+  foreach t in array array['client','project','category','project_category_markup','worker','invoice','item','time_entry','photo'] loop
     execute format('alter table %I enable row level security', t);
     execute format(
       'create policy %I on %I for all using (business_id in (select my_business_ids())) with check (business_id in (select my_business_ids()))',

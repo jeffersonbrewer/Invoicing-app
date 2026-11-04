@@ -10,7 +10,7 @@ Plan: https://claude.ai/artifact/BsW9qrJTxSLv4cctm4ACEB
 
 - Next.js (App Router) + TypeScript + Tailwind CSS, installable as a PWA
 - Supabase for the database, sign-in and photo storage
-- Hosting on Vercel
+- Hosting on Netlify (free plan allows business use)
 
 ## Run it locally
 
@@ -26,6 +26,8 @@ Plan: https://claude.ai/artifact/BsW9qrJTxSLv4cctm4ACEB
 - Money is stored as integer cents.
 - Each material stores both her cost and the client price; the price defaults to cost plus markup.
 - Time entries copy the worker's rates when logged, so old invoices never change.
+- Markup for a new item is picked most specific first: item, job + category, job, category, business default.
+- Sales tax can be folded into prices (default) or shown as its own invoice line.
 - Every table belongs to a `business`, and row-level security keeps businesses separate.
 
 ## Build order
